@@ -1,224 +1,266 @@
-import http from 'node:http';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import express from 'express';
-import dotenv from 'dotenv';
-import { WebSocketServer } from 'ws';
-import { createClient } from '@supabase/supabase-js';
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ludo Emperor 4 Way — Global Multiplayer</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --bg-2: #111827;
+        --panel: #1f2937;
+        --text: #f8fafc;
+        --muted: #cbd5e1;
+        --accent: #f59e0b;
+        --success: #22c55e;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(circle at top, #1e293b 0%, var(--bg) 55%);
+        color: var(--text);
+        font-family: Arial, sans-serif;
+        display: grid;
+        place-items: center;
+      }
+      .shell {
+        width: min(980px, calc(100vw - 32px));
+        background: rgba(17, 24, 39, 0.95);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 18px;
+        box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+        padding: 24px;
+      }
+      h1 { margin-top: 0; }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin: 18px 0;
+      }
+      input, button {
+        border: none;
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 16px;
+      }
+      input {
+        min-width: 240px;
+        background: var(--panel);
+        color: var(--text);
+      }
+      button {
+        font-weight: bold;
+        cursor: pointer;
+        background: var(--accent);
+        color: #111827;
+      }
+      button.secondary {
+        background: var(--success);
+      }
+      .status {
+        margin-top: 18px;
+        padding: 16px;
+        border-radius: 12px;
+        background: rgba(148,163,184,.08);
+        color: var(--muted);
+      }
+      .badge {
+        display: inline-block;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(34,197,94,.12);
+        color: #ccfbf1;
+        border: 1px solid rgba(34,197,94,.2);
+      }
+      .players {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 18px;
+      }
+      .pill {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(59,130,246,.12);
+        border: 1px solid rgba(59,130,246,.25);
+      }
+      .game-box {
+        margin-top: 20px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(15, 23, 42, 0.7);
+        padding: 16px;
+        border-radius: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <h1>Ludo Emperor 4 Way</h1>
+      <p>Play with friends from anywhere in the world using a room code.</p>
 
-dotenv.config();
+      <div class="row">
+        <input id="playerName" value="Player" placeholder="Your name" />
+        <button id="createRoomBtn">Create room</button>
+      </div>
 
-const app = express();
-const port = Number(process.env.PORT || 8080);
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const publicDir = path.join(__dirname, '..', 'public');
+      <div class="row">
+        <input id="roomCodeInput" placeholder="Enter room code" maxlength="10" />
+        <button id="joinRoomBtn" class="secondary">Join room</button>
+      </div>
 
-const supabase = createClient(
-  process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_ANON_KEY || ''
-);
+      <div class="row">
+        <span class="badge" id="roomBadge">No room yet</span>
+      </div>
 
-app.use(express.json());
-app.use(express.static(publicDir));
+      <div id="status" class="status">
+        Create a room and share the code with friends. When they join, the room updates live.
+      </div>
 
-const roomState = new Map();
+      <div class="players" id="players"></div>
 
-function makeRoomCode(length = 4) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < length; i += 1) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
-}
+      <div class="game-box">
+        <h3>Live game state</h3>
+        <pre id="gameStateBox">{ "phase": "lobby" }</pre>
+      </div>
+    </div>
 
-async function persistRoom(code, payload) {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) return;
+    <script>
+      const statusEl = document.getElementById('status');
+      const roomBadge = document.getElementById('roomBadge');
+      const playersEl = document.getElementById('players');
+      const roomInputEl = document.getElementById('roomCodeInput');
+      const playerInputEl = document.getElementById('playerName');
+      const gameBoxEl = document.getElementById('gameStateBox');
 
-  try {
-    const { data, error } = await supabase
-      .from('rooms')
-      .upsert({ code, ...payload, updated_at: new Date().toISOString() })
-      .select();
+      const url = new URL(window.location.href);
+      const roomFromQuery = url.searchParams.get('room');
+      if (roomFromQuery) roomInputEl.value = roomFromQuery;
 
-    if (error) console.error('Supabase upsert error:', error.message);
-    return data;
-  } catch (err) {
-    console.error('Supabase failed:', err.message);
-  }
-}
+      let socket = null;
+      let currentRoom = null;
+      let currentPlayerName = 'Player';
+      let currentPlayerId = null;
 
-async function getRoomFromDb(code) {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) return null;
+      function connectSocket() {
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const wsUrl = `${wsProtocol}://${window.location.host}/ws`;
+        socket = new WebSocket(wsUrl);
 
-  try {
-    const { data, error } = await supabase
-      .from('rooms')
-      .select('*')
-      .eq('code', code)
-      .maybeSingle();
+        socket.addEventListener('open', () => {
+          statusEl.textContent = 'Connected to multiplayer server.';
+          if (currentRoom && currentPlayerName) {
+            socket.send(JSON.stringify({ type: 'join-room', roomCode: currentRoom, playerName: currentPlayerName }));
+          }
+        });
 
-    if (error) {
-      console.error('Supabase room fetch error:', error.message);
-      return null;
-    }
+        socket.addEventListener('message', (event) => {
+          try {
+            const msg = JSON.parse(event.data);
 
-    return data;
-  } catch (err) {
-    console.error('Supabase read error:', err.message);
-    return null;
-  }
-}
+            if (msg.type === 'joined-room') {
+              currentRoom = msg.roomCode;
+              currentPlayerId = msg.playerId;
+              roomBadge.textContent = `Room: ${msg.roomCode}`;
+              roomInputEl.value = msg.roomCode;
+              url.searchParams.set('room', msg.roomCode);
+              window.history.replaceState({}, '', `${url.pathname}?${url.searchParams.toString()}`);
+              renderPlayers(msg.players || []);
+              statusEl.textContent = `Joined room ${msg.roomCode}. Share the code with friends.`;
+            }
 
-function roomPayload(code, players = []) {
-  return {
-    code,
-    players,
-    state: roomState.get(code) || { phase: 'lobby', players: [] },
-    updated_at: new Date().toISOString(),
-  };
-}
+            if (msg.type === 'room-update') {
+              renderPlayers(msg.players || []);
+              statusEl.textContent = `Players in room ${msg.roomCode}: ${(msg.players || []).length}`;
+            }
 
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true, service: 'ludo-emperor-4-way-multiplayer', time: new Date().toISOString() });
-});
+            if (msg.type === 'game-state') {
+              gameBoxEl.textContent = JSON.stringify(msg.state, null, 2);
+            }
 
-app.post('/api/rooms/create', async (req, res) => {
-  const { playerName = 'Player' } = req.body || {};
-  let code = makeRoomCode();
+            if (msg.type === 'chat') {
+              statusEl.textContent = `${msg.playerName}: ${msg.message}`;
+            }
+          } catch (error) {
+            console.error('Message parse error:', error);
+          }
+        });
 
-  while (roomState.has(code)) {
-    code = makeRoomCode();
-  }
+        socket.addEventListener('close', () => {
+          statusEl.textContent = 'Connection lost. Reconnecting...';
+        });
+      }
 
-  const payload = roomPayload(code, [{ name: playerName, connected: true }]);
-  roomState.set(code, payload.state);
-  await persistRoom(code, { players: payload.players, state: payload.state });
+      function renderPlayers(players) {
+        playersEl.innerHTML = '';
+        if (!players || players.length === 0) {
+          playersEl.innerHTML = '<span class="pill">No players yet</span>';
+          return;
+        }
+        players.forEach((player) => {
+          const pill = document.createElement('span');
+          pill.className = 'pill';
+          pill.textContent = player.name || 'Player';
+          playersEl.appendChild(pill);
+        });
+      }
 
-  res.json({ ok: true, roomCode: code, shareUrl: `/?room=${code}` });
-});
+      async function createRoom() {
+        currentPlayerName = playerInputEl.value.trim() || 'Player';
+        const res = await fetch('/api/rooms/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playerName: currentPlayerName })
+        });
 
-app.post('/api/rooms/join', async (req, res) => {
-  const { roomCode, playerName = 'Player' } = req.body || {};
-  if (!roomCode) {
-    return res.status(400).json({ ok: false, message: 'roomCode is required' });
-  }
-
-  const normalized = String(roomCode).toUpperCase();
-  const existing = roomState.get(normalized) || await getRoomFromDb(normalized);
-  if (!existing) {
-    return res.status(404).json({ ok: false, message: 'Room not found' });
-  }
-
-  const currentPlayers = Array.isArray(existing.players) ? existing.players : [];
-  const player = { name: playerName, connected: true };
-  const updatedPlayers = [...currentPlayers.filter((p) => p.name !== playerName), player];
-
-  const state = typeof existing.state === 'object' ? existing.state : { phase: 'lobby', players: [] };
-  state.players = updatedPlayers;
-  roomState.set(normalized, state);
-
-  await persistRoom(normalized, { players: updatedPlayers, state });
-
-  res.json({ ok: true, roomCode: normalized, players: updatedPlayers, state });
-});
-
-app.get('/api/rooms/:code', async (req, res) => {
-  const code = String(req.params.code).toUpperCase();
-  const room = roomState.get(code) || await getRoomFromDb(code);
-
-  if (!room) {
-    return res.status(404).json({ ok: false, message: 'Room not found' });
-  }
-
-  res.json({ ok: true, roomCode: code, players: room.players || [], state: room.state || { phase: 'lobby', players: [] } });
-});
-
-const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
-
-const roomMembers = new Map();
-
-wss.on('connection', (ws) => {
-  let playerName = 'Player';
-  let roomCode = null;
-
-  ws.on('message', (raw) => {
-    try {
-      const message = JSON.parse(raw.toString());
-
-      if (message.type === 'join-room') {
-        roomCode = String(message.roomCode || '').toUpperCase();
-        playerName = message.playerName || playerName;
-
-        if (!roomCode) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Room code is required' }));
+        const data = await res.json();
+        if (!res.ok) {
+          statusEl.textContent = data.message || 'Failed to create room';
           return;
         }
 
-        if (!roomMembers.has(roomCode)) roomMembers.set(roomCode, new Set());
-        roomMembers.get(roomCode).add(ws);
+        currentRoom = data.roomCode;
+        roomInputEl.value = data.roomCode;
+        roomBadge.textContent = `Room: ${data.roomCode}`;
+        if (!socket || socket.readyState !== WebSocket.OPEN) connectSocket();
+        socket.send(JSON.stringify({ type: 'join-room', roomCode: data.roomCode, playerName: currentPlayerName }));
+        statusEl.textContent = `Room ${data.roomCode} created. Share it with your friends.`;
+      }
 
-        const room = roomState.get(roomCode) || { phase: 'lobby', players: [] };
-        room.players = Array.isArray(room.players) ? room.players : [];
-        const existing = room.players.find((player) => player.name === playerName);
-        if (!existing) {
-          room.players.push({ name: playerName, connected: true });
+      async function joinRoom() {
+        currentPlayerName = playerInputEl.value.trim() || 'Player';
+        const roomCode = roomInputEl.value.trim().toUpperCase();
+        if (!roomCode) {
+          statusEl.textContent = 'Type a room code first.';
+          return;
         }
-        roomState.set(roomCode, room);
 
-        persistRoom(roomCode, { players: room.players, state: room });
+        const res = await fetch('/api/rooms/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roomCode, playerName: currentPlayerName })
+        });
 
-        broadcast(roomCode, { type: 'room-update', roomCode, players: room.players, state: room });
-        return;
+        const data = await res.json();
+        if (!res.ok) {
+          statusEl.textContent = data.message || 'Failed to join room';
+          return;
+        }
+
+        currentRoom = roomCode;
+        roomBadge.textContent = `Room: ${roomCode}`;
+        if (!socket || socket.readyState !== WebSocket.OPEN) connectSocket();
+        socket.send(JSON.stringify({ type: 'join-room', roomCode, playerName: currentPlayerName }));
+        statusEl.textContent = `Joined room ${roomCode}. Waiting for players...`;
       }
 
-      if (message.type === 'game-state' && roomCode) {
-        const room = roomState.get(roomCode) || { phase: 'lobby', players: [] };
-        room.state = message.state || room.state || { phase: 'lobby', players: [] };
-        roomState.set(roomCode, room);
-        persistRoom(roomCode, { players: room.players || [], state: room.state });
-        broadcast(roomCode, { type: 'game-state', roomCode, state: room.state });
-        return;
-      }
+      document.getElementById('createRoomBtn').addEventListener('click', createRoom);
+      document.getElementById('joinRoomBtn').addEventListener('click', joinRoom);
+      connectSocket();
 
-      if (message.type === 'chat' && roomCode) {
-        broadcast(roomCode, { type: 'chat', playerName, message: message.message });
-      }
-    } catch (error) {
-      console.error('WS message parse error:', error.message);
-    }
-  });
-
-  ws.on('close', () => {
-    if (!roomCode) return;
-
-    const members = roomMembers.get(roomCode);
-    if (members) {
-      members.delete(ws);
-      if (members.size === 0) roomMembers.delete(roomCode);
-    }
-
-    const room = roomState.get(roomCode);
-    if (room && Array.isArray(room.players)) {
-      room.players = room.players.filter((player) => player.name !== playerName);
-      roomState.set(roomCode, room);
-      persistRoom(roomCode, { players: room.players, state: room.state || room });
-      broadcast(roomCode, { type: 'room-update', roomCode, players: room.players, state: room });
-    }
-  });
-});
-
-function broadcast(roomCode, payload) {
-  const members = roomMembers.get(roomCode) || new Set();
-  for (const client of members) {
-    if (client.readyState === client.OPEN) {
-      client.send(JSON.stringify(payload));
-    }
-  }
-}
-
-server.listen(port, () => {
-  console.log(`Ludo Emperor multiplayer server is running on http://localhost:${port}`);
-});
+      const initialState = { phase: 'lobby', players: [] };
+      gameBoxEl.textContent = JSON.stringify(initialState, null, 2);
+    </script>
+  </body>
+</html>
