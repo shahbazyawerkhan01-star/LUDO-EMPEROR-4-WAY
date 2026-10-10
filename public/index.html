@@ -13,8 +13,11 @@
         --muted: #cbd5e1;
         --accent: #f59e0b;
         --success: #22c55e;
+        --danger: #ef4444;
       }
+
       * { box-sizing: border-box; }
+
       body {
         margin: 0;
         min-height: 100vh;
@@ -24,6 +27,7 @@
         display: grid;
         place-items: center;
       }
+
       .shell {
         width: min(980px, calc(100vw - 32px));
         background: rgba(17, 24, 39, 0.95);
@@ -32,33 +36,46 @@
         box-shadow: 0 30px 80px rgba(0,0,0,0.45);
         padding: 24px;
       }
+
       h1 { margin-top: 0; }
+
       .row {
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
         margin: 18px 0;
       }
+
       input, button {
         border: none;
         border-radius: 12px;
         padding: 12px 14px;
         font-size: 16px;
       }
+
       input {
         min-width: 240px;
         background: var(--panel);
         color: var(--text);
       }
+
       button {
         font-weight: bold;
         cursor: pointer;
         background: var(--accent);
         color: #111827;
       }
+
       button.secondary {
         background: var(--success);
+        color: #052e16;
       }
+
+      button.danger {
+        background: var(--danger);
+        color: white;
+      }
+
       .status {
         margin-top: 18px;
         padding: 16px;
@@ -66,6 +83,7 @@
         background: rgba(148,163,184,.08);
         color: var(--muted);
       }
+
       .badge {
         display: inline-block;
         padding: 8px 12px;
@@ -74,18 +92,21 @@
         color: #ccfbf1;
         border: 1px solid rgba(34,197,94,.2);
       }
+
       .players {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
         margin-top: 18px;
       }
+
       .pill {
         padding: 8px 12px;
         border-radius: 999px;
         background: rgba(59,130,246,.12);
         border: 1px solid rgba(59,130,246,.25);
       }
+
       .game-box {
         margin-top: 20px;
         border: 1px solid rgba(255,255,255,0.08);
@@ -93,174 +114,136 @@
         padding: 16px;
         border-radius: 14px;
       }
+
+      .hidden {
+        display: none;
+      }
     </style>
   </head>
   <body>
     <div class="shell">
       <h1>Ludo Emperor 4 Way</h1>
-      <p>Play with friends from anywhere in the world using a room code.</p>
+      <div class="badge">Global multiplayer room lobby</div>
 
       <div class="row">
-        <input id="playerName" value="Player" placeholder="Your name" />
-        <button id="createRoomBtn">Create room</button>
-      </div>
-
-      <div class="row">
-        <input id="roomCodeInput" placeholder="Enter room code" maxlength="10" />
-        <button id="joinRoomBtn" class="secondary">Join room</button>
+        <input id="playerName" type="text" maxlength="20" placeholder="Your name" value="Player" />
       </div>
 
       <div class="row">
-        <span class="badge" id="roomBadge">No room yet</span>
+        <button id="createBtn">Create room</button>
+        <input id="roomCode" type="text" maxlength="8" placeholder="Enter room code" />
+        <button class="secondary" id="joinBtn">Join room</button>
       </div>
 
-      <div id="status" class="status">
-        Create a room and share the code with friends. When they join, the room updates live.
-      </div>
-
-      <div class="players" id="players"></div>
+      <div id="statusBox" class="status">Ready to create or join a room.</div>
 
       <div class="game-box">
-        <h3>Live game state</h3>
-        <pre id="gameStateBox">{ "phase": "lobby" }</pre>
+        <strong>Instructions</strong>
+        <p>1. Create a room and share the code.</p>
+        <p>2. Friends join with the same room code.</p>
+        <p>3. Everyone enters the game board together.</p>
       </div>
     </div>
 
     <script>
-      const statusEl = document.getElementById('status');
-      const roomBadge = document.getElementById('roomBadge');
-      const playersEl = document.getElementById('players');
-      const roomInputEl = document.getElementById('roomCodeInput');
-      const playerInputEl = document.getElementById('playerName');
-      const gameBoxEl = document.getElementById('gameStateBox');
+      const statusBox = document.getElementById('statusBox');
+      const playerInput = document.getElementById('playerName');
+      const roomInput = document.getElementById('roomCode');
+      const createBtn = document.getElementById('createBtn');
+      const joinBtn = document.getElementById('joinBtn');
 
-      const url = new URL(window.location.href);
-      const roomFromQuery = url.searchParams.get('room');
-      if (roomFromQuery) roomInputEl.value = roomFromQuery;
-
-      let socket = null;
-      let currentRoom = null;
-      let currentPlayerName = 'Player';
-      let currentPlayerId = null;
-
-      function connectSocket() {
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const wsUrl = `${wsProtocol}://${window.location.host}/ws`;
-        socket = new WebSocket(wsUrl);
-
-        socket.addEventListener('open', () => {
-          statusEl.textContent = 'Connected to multiplayer server.';
-          if (currentRoom && currentPlayerName) {
-            socket.send(JSON.stringify({ type: 'join-room', roomCode: currentRoom, playerName: currentPlayerName }));
-          }
-        });
-
-        socket.addEventListener('message', (event) => {
-          try {
-            const msg = JSON.parse(event.data);
-
-            if (msg.type === 'joined-room') {
-              currentRoom = msg.roomCode;
-              currentPlayerId = msg.playerId;
-              roomBadge.textContent = `Room: ${msg.roomCode}`;
-              roomInputEl.value = msg.roomCode;
-              url.searchParams.set('room', msg.roomCode);
-              window.history.replaceState({}, '', `${url.pathname}?${url.searchParams.toString()}`);
-              renderPlayers(msg.players || []);
-              statusEl.textContent = `Joined room ${msg.roomCode}. Share the code with friends.`;
-            }
-
-            if (msg.type === 'room-update') {
-              renderPlayers(msg.players || []);
-              statusEl.textContent = `Players in room ${msg.roomCode}: ${(msg.players || []).length}`;
-            }
-
-            if (msg.type === 'game-state') {
-              gameBoxEl.textContent = JSON.stringify(msg.state, null, 2);
-            }
-
-            if (msg.type === 'chat') {
-              statusEl.textContent = `${msg.playerName}: ${msg.message}`;
-            }
-          } catch (error) {
-            console.error('Message parse error:', error);
-          }
-        });
-
-        socket.addEventListener('close', () => {
-          statusEl.textContent = 'Connection lost. Reconnecting...';
-        });
+      function setStatus(message, isError = false) {
+        statusBox.textContent = message;
+        statusBox.style.color = isError ? '#fecaca' : '#cbd5e1';
       }
 
-      function renderPlayers(players) {
-        playersEl.innerHTML = '';
-        if (!players || players.length === 0) {
-          playersEl.innerHTML = '<span class="pill">No players yet</span>';
-          return;
-        }
-        players.forEach((player) => {
-          const pill = document.createElement('span');
-          pill.className = 'pill';
-          pill.textContent = player.name || 'Player';
-          playersEl.appendChild(pill);
-        });
+      function savePlayerName() {
+        const value = (playerInput.value || 'Player').trim() || 'Player';
+        localStorage.setItem('playerName', value);
+        playerInput.value = value;
       }
 
       async function createRoom() {
-        currentPlayerName = playerInputEl.value.trim() || 'Player';
-        const res = await fetch('/api/rooms/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ playerName: currentPlayerName })
-        });
+        savePlayerName();
+        createBtn.disabled = true;
+        joinBtn.disabled = true;
+        setStatus('Creating room...');
 
-        const data = await res.json();
-        if (!res.ok) {
-          statusEl.textContent = data.message || 'Failed to create room';
-          return;
+        try {
+          const res = await fetch('/api/rooms/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ playerName: playerInput.value })
+          });
+
+          const data = await res.json();
+          if (!res.ok || !data.roomCode) {
+            throw new Error(data.message || 'Could not create room');
+          }
+
+          localStorage.setItem('playerName', playerInput.value);
+          localStorage.setItem('currentRoom', data.roomCode);
+          setStatus(`Room created! Code: ${data.roomCode} — opening game...`);
+          window.location.href = `game.html?room=${data.roomCode}`;
+        } catch (error) {
+          setStatus(error.message || 'Failed to create room', true);
+        } finally {
+          createBtn.disabled = false;
+          joinBtn.disabled = false;
         }
-
-        currentRoom = data.roomCode;
-        roomInputEl.value = data.roomCode;
-        roomBadge.textContent = `Room: ${data.roomCode}`;
-        if (!socket || socket.readyState !== WebSocket.OPEN) connectSocket();
-        socket.send(JSON.stringify({ type: 'join-room', roomCode: data.roomCode, playerName: currentPlayerName }));
-        statusEl.textContent = `Room ${data.roomCode} created. Share it with your friends.`;
       }
 
       async function joinRoom() {
-        currentPlayerName = playerInputEl.value.trim() || 'Player';
-        const roomCode = roomInputEl.value.trim().toUpperCase();
+        savePlayerName();
+        const roomCode = (roomInput.value || '').trim().toUpperCase();
+
         if (!roomCode) {
-          statusEl.textContent = 'Type a room code first.';
+          setStatus('Please enter a room code.', true);
           return;
         }
 
-        const res = await fetch('/api/rooms/join', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ roomCode, playerName: currentPlayerName })
-        });
+        createBtn.disabled = true;
+        joinBtn.disabled = true;
+        setStatus(`Joining room ${roomCode}...`);
 
-        const data = await res.json();
-        if (!res.ok) {
-          statusEl.textContent = data.message || 'Failed to join room';
-          return;
+        try {
+          const res = await fetch('/api/rooms/join', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ roomCode, playerName: playerInput.value })
+          });
+
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.message || 'Could not join room');
+          }
+
+          localStorage.setItem('playerName', playerInput.value);
+          localStorage.setItem('currentRoom', roomCode);
+          setStatus(`Joined room ${roomCode} — opening game...`);
+          window.location.href = `game.html?room=${roomCode}`;
+        } catch (error) {
+          setStatus(error.message || 'Failed to join room', true);
+        } finally {
+          createBtn.disabled = false;
+          joinBtn.disabled = false;
         }
-
-        currentRoom = roomCode;
-        roomBadge.textContent = `Room: ${roomCode}`;
-        if (!socket || socket.readyState !== WebSocket.OPEN) connectSocket();
-        socket.send(JSON.stringify({ type: 'join-room', roomCode, playerName: currentPlayerName }));
-        statusEl.textContent = `Joined room ${roomCode}. Waiting for players...`;
       }
 
-      document.getElementById('createRoomBtn').addEventListener('click', createRoom);
-      document.getElementById('joinRoomBtn').addEventListener('click', joinRoom);
-      connectSocket();
+      const savedName = localStorage.getItem('playerName');
+      if (savedName) playerInput.value = savedName;
 
-      const initialState = { phase: 'lobby', players: [] };
-      gameBoxEl.textContent = JSON.stringify(initialState, null, 2);
+      const urlRoom = new URLSearchParams(window.location.search).get('room');
+      if (urlRoom) roomInput.value = urlRoom.toUpperCase();
+
+      createBtn.addEventListener('click', createRoom);
+      joinBtn.addEventListener('click', joinRoom);
+      playerInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') createRoom();
+      });
+      roomInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') joinRoom();
+      });
     </script>
   </body>
 </html>
