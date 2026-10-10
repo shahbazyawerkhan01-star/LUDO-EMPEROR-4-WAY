@@ -8,6 +8,7 @@ export type ModalId =
     | 'music'
     | 'howto'
     | 'invite'
+    | 'multiplayer'
     | 'tournament'
     | `wish:${number}`
     | `profile:${number}`;

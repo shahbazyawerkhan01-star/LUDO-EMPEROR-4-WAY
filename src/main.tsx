@@ -40,6 +40,10 @@ preloadSounds();
 
 // 6) menu
 store.patch({ phase: 'menu', loadProgress: 1 });
+const urlRoom = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('room') : null;
+if (urlRoom) {
+    store.patch({ modal: 'multiplayer' });
+}
 
 // 7) lifecycles: pause/resume freeze the ticker; sleep/quit would flush saves (settings already persist on change)
 registerLifecycles({

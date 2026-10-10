@@ -1,3 +1,5 @@
+import { safeStorage } from './storage';
+
 // Settings persistence.
 //
 // The RUN H5 host serves games from an opaque ("null") origin where direct
@@ -24,13 +26,7 @@ export const deviceCacheAvailable = () => device !== null;
 
 /** Synchronous best-effort read from browser storage (standalone play). */
 export function readLocal(): string | null {
-    try {
-        // @rundot-ignore-storage — guarded fallback for host-less browser play; the RUN host path uses deviceCache below.
-        const raw = localStorage.getItem(SETTINGS_KEY);
-        return raw ?? null;
-    } catch {
-        return null; // opaque origin or storage disabled
-    }
+    return safeStorage.getItem(SETTINGS_KEY);
 }
 
 /** Write through to whichever storage layer this environment provides. */
@@ -40,8 +36,7 @@ export function write(raw: string): void {
             void device.setItem(SETTINGS_KEY, raw);
             return;
         }
-        // @rundot-ignore-storage — guarded fallback for host-less browser play; the RUN host path uses deviceCache above.
-        localStorage.setItem(SETTINGS_KEY, raw);
+        safeStorage.setItem(SETTINGS_KEY, raw);
     } catch {
         /* ignore: settings are a nicety, never a hard requirement */
     }

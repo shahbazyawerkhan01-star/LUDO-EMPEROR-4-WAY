@@ -3,6 +3,7 @@
 import { Application, Circle, Container, Graphics, Text } from 'pixi.js';
 import type { Stage } from './stage';
 import { store, type PlayerCfg } from '../state/store';
+import { multiplayerClient } from '../network/multiplayerClient';
 import { bus } from './bus';
 import { tr, colorName } from '../i18n';
 import {
@@ -546,7 +547,7 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
         return { x: dieC[i]?.position.x ?? diceCX[i], y: dieC[i]?.position.y ?? diceCY };
     }
     function syncHand() {
-        if (isAI(current) || winner >= 0) {
+        if ((multiplayerClient.roomCode && multiplayerClient.myPlayerIndex !== current) || isAI(current) || winner >= 0) {
             handTarget = null;
         } else if (waitRoll) {
             handTarget = dieCenter(0); // any die starts the roll
@@ -591,6 +592,19 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
         statusText = s;
     }
     function refreshTurnText() {
+        if (multiplayerClient.roomCode) {
+            const isMe = multiplayerClient.myPlayerIndex === current;
+            if (isMe) {
+                turnTxt.text = waitRoll
+                    ? `🎯 Your Turn! Roll the dice (${multiplayerClient.turnSecondsLeft}s)`
+                    : `🎲 Pick a die & move your pawn (${multiplayerClient.turnSecondsLeft}s)`;
+                turnTxt.style.fill = 0x22c55e;
+            } else {
+                turnTxt.text = `⏳ Waiting for ${nameOf(current)} to ${waitRoll ? 'roll' : 'move'} (${multiplayerClient.turnSecondsLeft}s)...`;
+                turnTxt.style.fill = 0xfacc15;
+            }
+            return;
+        }
         turnTxt.text = statusText || `${avatarOf(current)} ${tr(lang, 'turn', { n: nameOf(current) })}`;
         turnTxt.style.fill = statusText ? 0xffffff : mix(COLORS[current], 0xffffff, 0.25);
     }
@@ -708,12 +722,43 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
         enqueue({ idx, text, voice: o?.voice !== false }, true);
     };
 
+    bus.onRemoteDiceRolled = (rp, rolledDice) => {
+        if (rp === current && waitRoll) {
+            const r = waitRoll;
+            waitRoll = null;
+            r([rolledDice[0], rolledDice[1]]);
+        }
+    };
+
+    bus.onRemotePawnMoved = (rp, dieIndex, tokenIndex) => {
+        if (rp === current && waitChoice) {
+            const m = optionsNow.find((o) => o.die === dieIndex && o.tok === tokenIndex)
+                || legalMoves(tokens, rp, dice[dieIndex], dieIndex, active).find((o) => o.tok === tokenIndex);
+            if (m) {
+                const r = waitChoice;
+                waitChoice = null;
+                r(m);
+            }
+        }
+    };
+
     // ---------------------------------------------------------------- input
     // Humans always work in two taps: first pick the die (a number), then pick
     // the token (a piece). This keeps doubled dice honest -- the player decides
     // which 5 they are spending instead of the game guessing for them.
     // (dieConfirmed / dieFlash are declared with the dice state above.)
     function onDieTap(i: number) {
+        if (multiplayerClient.roomCode) {
+            if (multiplayerClient.myPlayerIndex !== current) {
+                // Strict turn locking: ignore taps on non-active screens
+                return;
+            }
+            if (waitRoll) {
+                sfx.tap();
+                void multiplayerClient.rollDice();
+                return;
+            }
+        }
         if (waitRoll && !isAI(current)) {
             sfx.tap();
             const r = waitRoll;
@@ -721,7 +766,7 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
             r();
             return;
         }
-        if (waitChoice && !diceUsed[i] && !isAI(current)) {
+        if (waitChoice && !diceUsed[i] && (!multiplayerClient.roomCode ? !isAI(current) : multiplayerClient.myPlayerIndex === current)) {
             if (!optionsNow.some((m) => m.die === i)) return;
             sfx.tap();
             if (selDie === i) {
@@ -736,7 +781,14 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
         }
     }
     function onTokenTap(v: TokView) {
-        if (!waitChoice || isAI(current) || v.p !== current) return;
+        if (!waitChoice) return;
+        if (multiplayerClient.roomCode && multiplayerClient.myPlayerIndex !== current) {
+            // Strict turn locking
+            return;
+        }
+        if (!multiplayerClient.roomCode && isAI(current)) return;
+        if (v.p !== current) return;
+
         // The number always comes first, so the choice is never guessed for you.
         if (!dieConfirmed) {
             setStatus(tr(lang, 'pickDie'));
@@ -753,6 +805,13 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
             }
             return;
         }
+
+        if (multiplayerClient.roomCode) {
+            // Send move to server
+            void multiplayerClient.movePawn(selDie, v.t);
+            return;
+        }
+
         const r = waitChoice;
         waitChoice = null;
         r(m);
@@ -916,7 +975,12 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
 
         // --- roll
         let forced: [number, number] | undefined;
-        if (isAI(p)) {
+        if (multiplayerClient.roomCode && multiplayerClient.myPlayerIndex !== p) {
+            // Remote player's turn: wait for socket dice roll event
+            forced = await new Promise<[number, number]>((res) => {
+                waitRoll = (f) => res(f || [1, 1]);
+            });
+        } else if (isAI(p)) {
             await delay(1200);
             if (Math.random() < 0.18) anyAI('joke', p, undefined, 0.5);
         } else {
@@ -955,6 +1019,23 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
                 await delay(1100);
                 setStatus('');
                 break;
+            }
+            if (multiplayerClient.roomCode && multiplayerClient.myPlayerIndex !== p) {
+                // Remote player's turn: wait for socket pawn move event
+                const chosen = await new Promise<Move>((res) => {
+                    waitChoice = res;
+                });
+                setStatus('');
+                diceUsed[chosen.die] = true;
+                capturesTaken += chosen.captures.length;
+                const res = await applyMove(p, chosen);
+                if (res.captured || res.home) extra = true;
+                if (hasWon(tokens, p)) {
+                    winner = p;
+                    return false;
+                }
+                optionsNow = [];
+                continue;
             }
             if (isAI(p)) {
                 // the AI takes every capture it can, including the second of a pair
@@ -1101,6 +1182,9 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
             app.ticker.remove(tick);
             bus.chat = undefined;
             bus.wish = undefined;
+            bus.onRemoteDiceRolled = undefined;
+            bus.onRemotePawnMoved = undefined;
+            bus.onRemoteTurnChanged = undefined;
             // release anything the turn loop is awaiting, so it can unwind cleanly
             if (waitRoll) { const r = waitRoll; waitRoll = null; r(); }
             if (waitChoice) { const c = waitChoice; waitChoice = null; c(optionsNow[0]); }

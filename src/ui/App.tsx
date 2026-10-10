@@ -22,7 +22,12 @@ export function App() {
             raf = 0;
             const frame = document.getElementById('app-frame');
             if (!frame) return;
-            const fs = !!document.fullscreenElement || !!(document as any).webkitFullscreenElement;
+            let fs = false;
+            try {
+                fs = !!document.fullscreenElement || !!(document as any).webkitFullscreenElement;
+            } catch {
+                fs = false;
+            }
             // Landscape is driven by the VIEWPORT, not by the frame: a wide screen
             // (desktop window, laptop, tablet, or a phone turned sideways) should
             // use the wide layout instead of sitting in a letterboxed portrait strip.

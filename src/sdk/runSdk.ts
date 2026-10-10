@@ -10,7 +10,8 @@ let ready = false;
  * dynamic import below never settles. On its own that would stall the whole
  * boot forever, so every step here is raced against a timeout.
  */
-const HANDSHAKE_MS = 8000;
+const hasRunHost = typeof window !== 'undefined' && (!!(window as any).__rundotConfig || !!(globalThis as any).RundotGameAPI);
+const HANDSHAKE_MS = hasRunHost ? 4000 : 150;
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
     return new Promise<T>((resolve, reject) => {

@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { rundotGameLibrariesPlugin } from '@series-inc/rundot-game-sdk/vite';
 
 export default defineConfig({
     // REQUIRED for RUN: deployed builds are served from a subdirectory, so all
@@ -13,8 +12,10 @@ export default defineConfig({
     // bundle. Externalization only engages when the installed version exactly
     // matches the host's — hence the exact react/react-dom pins in package.json.
     // `npm run build:bundled` disables it for a standalone build.
-    plugins: [rundotGameLibrariesPlugin(), react(), tailwindcss()],
+    plugins: [react(), tailwindcss()],
     server: {
+        host: '0.0.0.0',
+        port: 3000,
         allowedHosts: true,
         // Editors and tools write throwaway temp files next to real ones
         // (e.g. "App.tsx~RF10eb034.TMP"). Watching those races with the writer
@@ -27,6 +28,10 @@ export default defineConfig({
                 '**/.chrome*/**', '**/tmp/**',
             ],
         },
+    },
+    preview: {
+        host: '0.0.0.0',
+        port: 3000,
     },
     build: {
         // Top-level await in the boot path (and in the SDK) needs a modern target.

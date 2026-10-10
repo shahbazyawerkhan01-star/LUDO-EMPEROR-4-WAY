@@ -7,6 +7,7 @@ import { REACTIONS, quickPhrases } from '../game/banter';
 import { bus } from '../game/bus';
 import { stopMusic } from '../game/music';
 import { Chip, Modal, Toggle, U } from './kit';
+import { MultiplayerLobbyModal } from './MultiplayerLobbyModal';
 
 const close = () => store.patch({ modal: null });
 
@@ -214,7 +215,7 @@ export function Modals() {
     if (modal === 'settings') return <Settings />;
     if (modal === 'music') return <Modal title="🎵 Music" onClose={close}><MusicPicker /></Modal>;
     if (modal === 'howto') return <HowTo />;
-    if (modal === 'invite') return <Invite />;
+    if (modal === 'invite' || modal === 'multiplayer') return <MultiplayerLobbyModal onClose={close} />;
     if (modal === 'tournament') return <Tournament />;
     if (modal.startsWith('wish:')) return <Wish idx={Number(modal.slice(5))} />;
     if (modal.startsWith('profile:')) return <Profile idx={Number(modal.slice(8))} />;

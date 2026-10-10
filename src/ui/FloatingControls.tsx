@@ -36,10 +36,16 @@ export function toggleFullscreen() {
         const el: any = document.documentElement;
         if (d.fullscreenElement || d.webkitFullscreenElement) {
             clearOrientationRetry();
-            (d.exitFullscreen || d.webkitExitFullscreen)?.call(d);
+            try {
+                const p = (d.exitFullscreen || d.webkitExitFullscreen)?.call(d);
+                if (p && typeof p.catch === 'function') p.catch(() => {});
+            } catch { /* ignore */ }
             try { (screen.orientation as any)?.unlock?.(); } catch { /* ignore */ }
         } else {
-            (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+            try {
+                const p = (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+                if (p && typeof p.catch === 'function') p.catch(() => {});
+            } catch { /* ignore */ }
             // Ask for landscape SYNCHRONOUSLY, still inside the tap handler: iOS
             // ignores orientation.lock() once the gesture context is gone.
             lockLandscape();
