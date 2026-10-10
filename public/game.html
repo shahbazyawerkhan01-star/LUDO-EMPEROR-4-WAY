@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -8,319 +8,561 @@
     <meta name="theme-color" content="#0a0f26" />
     <title>Ludo Emperor 4 Way — Game</title>
     <style>
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            padding: 0;
-            background: #0a0f26;
-            color: #fff;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
+      :root {
+        --bg: #0a0f26;
+        --panel: #111827;
+        --panel-2: #1f2937;
+        --line: #334155;
+        --text: #f8fafc;
+        --muted: #cbd5e1;
+        --red: #dc2626;
+        --green: #22c55e;
+        --yellow: #facc15;
+        --blue: #3b82f6;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: #0a0f26;
+        color: var(--text);
+        font-family: Arial, sans-serif;
+        overflow: hidden;
+      }
+
+      #app-container {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: linear-gradient(180deg, #0a0f26 0%, #0b122a 100%);
+      }
+
+      .header {
+        background: rgba(26,31,58,0.95);
+        border-bottom: 1px solid #2c3552;
+        padding: 12px 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .room-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: center;
+      }
+
+      .room-code {
+        background: rgba(59,130,246,0.18);
+        border: 1px solid rgba(96,165,250,0.4);
+        color: #dbeafe;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+
+      .players-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .player-badge {
+        background: rgba(148,163,184,0.12);
+        color: var(--text);
+        border: 1px solid rgba(148,163,184,0.4);
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+      }
+
+      .status-card {
+        min-width: 180px;
+        text-align: right;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .content {
+        flex: 1;
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        gap: 18px;
+        padding: 18px;
+      }
+
+      .board-area {
+        flex: 1;
+        min-width: 380px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .board {
+        width: min(72vmin, 620px);
+        aspect-ratio: 1;
+        background: #f4f4f4;
+        border-radius: 18px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+        position: relative;
+        overflow: hidden;
+        border: 6px solid #1a1f3a;
+      }
+
+      .board-grid {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(3, 1fr);
+        background: #f4f4f4;
+      }
+
+      .quadrant {
+        position: relative;
+        border: 2px solid rgba(15, 23, 42, 0.35);
+      }
+
+      .quadrant.red { background: #dd3f3f; }
+      .quadrant.green { background: #39b35f; }
+      .quadrant.yellow { background: #f2c948; }
+      .quadrant.blue { background: #35b6d9; }
+
+      .center {
+        position: absolute;
+        inset: 33%;
+        background: #0f172a;
+        border-radius: 20px;
+        border: 6px solid rgba(255,255,255,0.15);
+        display: grid;
+        place-items: center;
+        z-index: 2;
+      }
+
+      .dice {
+        position: absolute;
+        width: 140px;
+        height: 140px;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        background: #0f172a;
+        border-radius: 18px;
+        border: 4px solid rgba(255,255,255,0.2);
+        display: grid;
+        place-items: center;
+        z-index: 3;
+        box-shadow: 0 18px 40px rgba(0,0,0,0.25);
+      }
+
+      .dice-face {
+        width: 110px;
+        height: 110px;
+        border-radius: 14px;
+        background: rgba(15, 23, 42, 0.92);
+        display: grid;
+        place-items: center;
+        font-size: 52px;
+        font-weight: 800;
+        color: white;
+      }
+
+      .home-spot {
+        position: absolute;
+        width: 48%;
+        height: 48%;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.8);
+        box-shadow: inset 0 0 0 14px rgba(15, 23, 42, 0.04);
+      }
+
+      .home-spot.red { left: 10%; top: 10%; }
+      .home-spot.green { right: 10%; top: 10%; }
+      .home-spot.yellow { left: 10%; bottom: 10%; }
+      .home-spot.blue { right: 10%; bottom: 10%; }
+
+      .sidebar {
+        width: min(320px, 35vw);
+        min-width: 260px;
+        background: rgba(17,24,39,0.7);
+        border: 1px solid rgba(148,163,184,0.18);
+        border-radius: 18px;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .panel-title {
+        margin: 0 0 8px 0;
+        font-size: 18px;
+      }
+
+      .players-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .player-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(148,163,184,0.06);
+        border: 1px solid rgba(148,163,184,0.12);
+        border-radius: 10px;
+        padding: 8px 10px;
+      }
+
+      .player-name {
+        font-weight: 700;
+      }
+
+      .player-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+
+      .controls {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      button {
+        appearance: none;
+        border: none;
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 16px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .primary {
+        background: linear-gradient(180deg, #fbbf24, #f59e0b);
+        color: #111827;
+      }
+
+      .secondary {
+        background: rgba(34,197,94,0.16);
+        color: #dcfce7;
+        border: 1px solid rgba(34,197,94,0.3);
+      }
+
+      .danger {
+        background: rgba(239,68,68,0.16);
+        color: #fecaca;
+        border: 1px solid rgba(239,68,68,0.3);
+      }
+
+      .meta-box {
+        background: rgba(148,163,184,0.06);
+        border: 1px solid rgba(148,163,184,0.12);
+        border-radius: 10px;
+        padding: 12px;
+        color: var(--muted);
+      }
+
+      .meta-box strong {
+        color: var(--text);
+      }
+
+      @media (max-width: 900px) {
+        .content {
+          flex-direction: column;
+          align-items: center;
+          overflow: auto;
         }
-        #app-container {
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
+
+        .sidebar {
+          width: min(760px, 100%);
+          min-width: unset;
         }
-        .header {
-            background: #1a1f3a;
-            padding: 12px 16px;
-            border-bottom: 1px solid #333;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 14px;
-        }
-        .room-info {
-            display: flex;
-            gap: 20px;
-        }
-        .players-list {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .player-badge {
-            padding: 4px 8px;
-            background: #333;
-            border-radius: 4px;
-            font-size: 12px;
-            border: 1px solid #555;
-        }
-        .player-badge.active {
-            background: #22c55e;
-            border-color: #16a34a;
-        }
-        .game-area {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-        canvas {
-            display: block;
-            max-width: 100%;
-            max-height: 100%;
-        }
-        .controls {
-            background: #1a1f3a;
-            padding: 12px 16px;
-            border-top: 1px solid #333;
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-        .dice-display {
-            font-size: 18px;
-            font-weight: bold;
-            background: #333;
-            padding: 8px 12px;
-            border-radius: 6px;
-            min-width: 60px;
-            text-align: center;
-        }
-        button {
-            background: #f59e0b;
-            color: #0a0f26;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 14px;
-        }
-        button:hover {
-            background: #fbbf24;
-        }
-        button:disabled {
-            background: #999;
-            cursor: not-allowed;
-        }
-        .status-msg {
-            color: #cbd5e1;
-            font-size: 13px;
-        }
-        .exit-btn {
-            background: #ef4444;
-            color: white;
-            margin-left: auto;
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div id="app-container">
-        <div class="header">
-            <div class="room-info">
-                <span>Room: <strong id="room-code">—</strong></span>
-                <span id="room-players" class="players-list"></span>
+      <div class="header">
+        <div class="room-info">
+          <div class="room-code" id="roomCodeLabel">ROOM --</div>
+          <div class="players-list" id="playersList"></div>
+        </div>
+        <div class="status-card" id="statusText">Connecting...</div>
+      </div>
+
+      <div class="content">
+        <div class="board-area">
+          <div class="board" aria-label="Ludo board">
+            <div class="board-grid">
+              <div class="quadrant red"></div>
+              <div class="quadrant green"></div>
+              <div class="quadrant red"></div>
+              <div class="quadrant yellow"></div>
+              <div class="center"><div class="dice-face" id="centerToken">◎</div></div>
+              <div class="quadrant blue"></div>
+              <div class="quadrant yellow"></div>
+              <div class="quadrant blue"></div>
+              <div class="quadrant green"></div>
             </div>
-            <span class="status-msg" id="status">Connecting...</span>
-            <button class="exit-btn" onclick="exitGame()">Exit</button>
+
+            <div class="home-spot red"></div>
+            <div class="home-spot green"></div>
+            <div class="home-spot yellow"></div>
+            <div class="home-spot blue"></div>
+
+            <div class="dice" aria-live="polite">
+              <div class="dice-face" id="diceValue">-</div>
+            </div>
+          </div>
         </div>
-        <div class="game-area">
-            <canvas id="gameCanvas"></canvas>
-        </div>
-        <div class="controls">
-            <span class="status-msg" id="turn-info">Waiting for players...</span>
-            <span class="dice-display" id="dice-value">—</span>
-            <button id="roll-btn" onclick="rollDice()" disabled>Roll Dice</button>
-        </div>
+
+        <aside class="sidebar">
+          <div>
+            <h2 class="panel-title">Players</h2>
+            <div class="players-wrap" id="playerPanel"></div>
+          </div>
+
+          <div class="controls">
+            <button class="primary" id="rollBtn">Roll Dice</button>
+            <button class="secondary" id="refreshBtn">Refresh Room</button>
+            <button class="danger" id="leaveBtn">Leave</button>
+          </div>
+
+          <div class="meta-box">
+            <div><strong>Room:</strong> <span id="metaRoom">--</span></div>
+            <div><strong>Turn:</strong> <span id="metaTurn">Waiting</span></div>
+            <div><strong>Last roll:</strong> <span id="metaRoll">—</span></div>
+          </div>
+        </aside>
+      </div>
     </div>
 
     <script>
-        let ws = null;
-        let roomCode = null;
-        let playerName = null;
-        let gameState = null;
-        let players = [];
-        let currentPlayerIndex = 0;
-        let diceValue = 0;
-        let canRoll = false;
+      const roomCode = new URLSearchParams(window.location.search).get('room') || localStorage.getItem('currentRoom');
+      const playerName = localStorage.getItem('playerName') || 'Player';
+      const wsBase = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
 
-        // Get room and player info from URL params or localStorage
-        function initGame() {
-            const params = new URLSearchParams(window.location.search);
-            roomCode = params.get('room') || localStorage.getItem('currentRoom');
-            playerName = localStorage.getItem('playerName') || 'Player';
+      const state = {
+        roomCode: roomCode || '',
+        players: [],
+        turn: 0,
+        dice: null,
+        lastRollBy: '',
+        phase: 'lobby'
+      };
 
-            if (!roomCode || !playerName) {
-                alert('Missing room or player info. Redirecting to lobby...');
-                window.location.href = '/';
-                return;
-            }
+      const roomCodeLabel = document.getElementById('roomCodeLabel');
+      const playersList = document.getElementById('playersList');
+      const playerPanel = document.getElementById('playerPanel');
+      const statusText = document.getElementById('statusText');
+      const diceValue = document.getElementById('diceValue');
+      const metaRoom = document.getElementById('metaRoom');
+      const metaTurn = document.getElementById('metaTurn');
+      const metaRoll = document.getElementById('metaRoll');
+      const rollBtn = document.getElementById('rollBtn');
+      const refreshBtn = document.getElementById('refreshBtn');
+      const leaveBtn = document.getElementById('leaveBtn');
 
-            document.getElementById('room-code').textContent = roomCode;
-            connectWebSocket();
-        }
+      let socket = null;
+      let connected = false;
 
-        function connectWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+      function setStatus(message) {
+        statusText.textContent = message;
+      }
 
-            ws.onopen = () => {
-                console.log('WebSocket connected');
-                // Join the room
-                ws.send(JSON.stringify({
-                    type: 'join-room',
-                    roomCode: roomCode,
-                    playerName: playerName
-                }));
-            };
+      function renderPlayers() {
+        const players = Array.isArray(state.players) ? state.players : [];
 
-            ws.onmessage = (event) => {
-                try {
-                    const message = JSON.parse(event.data);
-                    handleMessage(message);
-                } catch (e) {
-                    console.error('WS message parse error:', e);
-                }
-            };
+        playersList.innerHTML = '';
+        playerPanel.innerHTML = '';
 
-            ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                document.getElementById('status').textContent = 'Connection error';
-            };
+        players.forEach((player, index) => {
+          const badge = document.createElement('div');
+          badge.className = 'player-badge';
+          badge.textContent = player.name || `Player ${index + 1}`;
+          if (player.name === playerName) badge.style.borderColor = '#fbbf24';
+          playersList.appendChild(badge);
 
-            ws.onclose = () => {
-                console.log('WebSocket closed');
-                document.getElementById('status').textContent = 'Disconnected';
-            };
-        }
-
-        function handleMessage(message) {
-            if (message.type === 'room-update') {
-                players = message.players || [];
-                updatePlayersList();
-                document.getElementById('status').textContent = `${players.length} players in room`;
-            } else if (message.type === 'game-state') {
-                gameState = message.state || gameState;
-                currentPlayerIndex = message.currentPlayer || 0;
-                updateTurnInfo();
-                redrawGame();
-            } else if (message.type === 'dice-roll') {
-                diceValue = message.value;
-                currentPlayerIndex = message.nextPlayer;
-                document.getElementById('dice-value').textContent = diceValue;
-                canRoll = false;
-                document.getElementById('roll-btn').disabled = true;
-                updateTurnInfo();
-            } else if (message.type === 'error') {
-                alert('Error: ' + message.message);
-            }
-        }
-
-        function updatePlayersList() {
-            const list = document.getElementById('room-players');
-            list.innerHTML = players.map((p, i) => 
-                `<span class="player-badge ${i === currentPlayerIndex ? 'active' : ''}">${p.name}</span>`
-            ).join('');
-        }
-
-        function updateTurnInfo() {
-            if (!players.length) return;
-            const currentPlayer = players[currentPlayerIndex];
-            const isMyTurn = currentPlayer.name === playerName;
-            document.getElementById('turn-info').textContent = `${isMyTurn ? 'Your' : currentPlayer.name + "'s"} turn`;
-            document.getElementById('roll-btn').disabled = !isMyTurn;
-            canRoll = isMyTurn;
-        }
-
-        function rollDice() {
-            if (!canRoll || !ws || ws.readyState !== WebSocket.OPEN) return;
-            
-            const value = Math.floor(Math.random() * 6) + 1;
-            
-            // Send dice roll to server
-            ws.send(JSON.stringify({
-                type: 'dice-roll',
-                roomCode: roomCode,
-                playerName: playerName,
-                value: value
-            }));
-        }
-
-        function redrawGame() {
-            const canvas = document.getElementById('gameCanvas');
-            const ctx = canvas.getContext('2d');
-            
-            canvas.width = Math.min(600, window.innerWidth - 40);
-            canvas.height = Math.min(600, window.innerHeight - 180);
-
-            // Draw Ludo board background
-            ctx.fillStyle = '#1a2642';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Draw board grid
-            drawBoard(ctx, canvas.width, canvas.height);
-
-            // Draw dice value if rolled
-            if (diceValue > 0) {
-                ctx.fillStyle = '#f59e0b';
-                ctx.font = 'bold 24px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(`Dice: ${diceValue}`, canvas.width / 2, 40);
-            }
-
-            // Draw players info
-            ctx.fillStyle = '#cbd5e1';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'left';
-            players.forEach((p, i) => {
-                ctx.fillText(`${p.name} (${p.name === playerName ? 'You' : 'Opponent'})`, 10, canvas.height - 20 - (i * 20));
-            });
-        }
-
-        function drawBoard(ctx, w, h) {
-            const cellSize = Math.min(w, h) / 10;
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 1;
-
-            // Draw grid
-            for (let i = 0; i <= 10; i++) {
-                // Vertical lines
-                ctx.beginPath();
-                ctx.moveTo(i * cellSize, 0);
-                ctx.lineTo(i * cellSize, h);
-                ctx.stroke();
-                
-                // Horizontal lines
-                ctx.beginPath();
-                ctx.moveTo(0, i * cellSize);
-                ctx.lineTo(w, i * cellSize);
-                ctx.stroke();
-            }
-
-            // Draw 4 player areas (corners)
-            const colors = ['#ef4444', '#22c55e', '#eab308', '#06b6d4'];
-            const corners = [
-                {x: 0, y: 0},
-                {x: w - cellSize * 3, y: 0},
-                {x: w - cellSize * 3, y: h - cellSize * 3},
-                {x: 0, y: h - cellSize * 3}
-            ];
-
-            corners.forEach((corner, i) => {
-                ctx.fillStyle = colors[i];
-                ctx.globalAlpha = 0.2;
-                ctx.fillRect(corner.x, corner.y, cellSize * 3, cellSize * 3);
-                ctx.globalAlpha = 1;
-            });
-        }
-
-        function exitGame() {
-            if (ws) ws.close();
-            localStorage.removeItem('currentRoom');
-            window.location.href = '/';
-        }
-
-        window.addEventListener('resize', () => {
-            redrawGame();
+          const playerRow = document.createElement('div');
+          playerRow.className = 'player-row';
+          playerRow.innerHTML = `
+            <span class="player-name"><span class="player-color" style="background:${['#ef4444','#22c55e','#facc15','#3b82f6'][index % 4]}"></span>${player.name || `Player ${index + 1}`}</span>
+            <span>${player.name === playerName ? 'You' : 'Guest'}</span>
+          `;
+          playerPanel.appendChild(playerRow);
         });
 
-        // Initialize game on load
-        window.addEventListener('load', initGame);
+        if (!players.length) {
+          const empty = document.createElement('div');
+          empty.className = 'player-row';
+          empty.textContent = 'Waiting for players...';
+          playerPanel.appendChild(empty);
+        }
+
+        roomCodeLabel.textContent = `ROOM ${state.roomCode || roomCode || '--'}`;
+        metaRoom.textContent = state.roomCode || roomCode || '--';
+      }
+
+      function renderGame() {
+        renderPlayers();
+        const players = Array.isArray(state.players) ? state.players : [];
+        const turnPlayer = players[state.turn % players.length] || null;
+        metaTurn.textContent = turnPlayer ? `${turnPlayer.name}'s turn` : 'Waiting';
+        metaRoll.textContent = state.lastRollBy ? `${state.lastRollBy} rolled ${state.dice}` : '—';
+        diceValue.textContent = state.dice ?? '-';
+      }
+
+      function sendSocket(payload) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify(payload));
+        }
+      }
+
+      function syncLocalState(roomData) {
+        if (!roomData) return;
+        state.roomCode = roomData.roomCode || state.roomCode;
+        state.players = Array.isArray(roomData.players) ? roomData.players : state.players;
+        state.phase = roomData.state && roomData.state.phase ? roomData.state.phase : state.phase;
+        const incomingState = roomData.state || {};
+        if (typeof incomingState.turn === 'number') state.turn = incomingState.turn;
+        if (typeof incomingState.dice === 'number') state.dice = incomingState.dice;
+        if (incomingState.lastRollBy) state.lastRollBy = incomingState.lastRollBy;
+        renderGame();
+      }
+
+      function sendGameState() {
+        const roomPlayers = Array.isArray(state.players) ? state.players : [];
+        const payload = {
+          type: 'game-state',
+          roomCode: state.roomCode,
+          state: {
+            phase: state.phase,
+            players: roomPlayers,
+            turn: state.turn,
+            dice: state.dice,
+            lastRollBy: state.lastRollBy
+          }
+        };
+        sendSocket(payload);
+      }
+
+      function rollDice() {
+        const players = Array.isArray(state.players) ? state.players : [];
+        if (!players.length) {
+          setStatus('No players in room yet.');
+          return;
+        }
+
+        const result = Math.ceil(Math.random() * 6);
+        state.dice = result;
+        state.lastRollBy = playerName;
+        state.turn = (state.turn + 1) % players.length;
+        state.phase = 'playing';
+        renderGame();
+        sendGameState();
+        setStatus(`${playerName} rolled ${result}.`);
+      }
+
+      function connectSocket() {
+        if (!roomCode) {
+          window.location.href = '/';
+          return;
+        }
+
+        socket = new WebSocket(wsBase);
+
+        socket.addEventListener('open', () => {
+          connected = true;
+          setStatus('Connected to room');
+          sendSocket({ type: 'join-room', roomCode, playerName });
+          refreshRoom();
+        });
+
+        socket.addEventListener('message', (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            if (message.type === 'room-update') {
+              syncLocalState(message);
+              setStatus(`Room sync: ${message.players?.length || 0} players online`);
+            }
+
+            if (message.type === 'game-state') {
+              const incoming = message.state || {};
+              state.roomCode = message.roomCode || state.roomCode;
+              state.phase = incoming.phase || state.phase;
+              state.players = Array.isArray(incoming.players) ? incoming.players : state.players;
+              state.turn = typeof incoming.turn === 'number' ? incoming.turn : state.turn;
+              state.dice = typeof incoming.dice === 'number' ? incoming.dice : state.dice;
+              state.lastRollBy = incoming.lastRollBy || state.lastRollBy;
+              renderGame();
+              setStatus(`Live update from room ${state.roomCode}`);
+            }
+
+            if (message.type === 'error') {
+              setStatus(message.message || 'Room error', true);
+            }
+          } catch (error) {
+            console.error('Socket parse error:', error);
+          }
+        });
+
+        socket.addEventListener('close', () => {
+          connected = false;
+          setStatus('Connection lost. Reconnecting...');
+          setTimeout(connectSocket, 2000);
+        });
+      }
+
+      function refreshRoom() {
+        fetch(`/api/rooms/${encodeURIComponent(roomCode)}`)
+          .then((response) => response.json())
+          .then((data) => {
+            if (data && data.ok && data.state) {
+              state.roomCode = data.roomCode || state.roomCode;
+              state.players = data.players || [];
+              state.phase = data.state.phase || state.phase;
+              if (typeof data.state.turn === 'number') state.turn = data.state.turn;
+              if (typeof data.state.dice === 'number') state.dice = data.state.dice;
+              if (data.state.lastRollBy) state.lastRollBy = data.state.lastRollBy;
+              renderGame();
+            }
+          })
+          .catch(() => {
+            setStatus('Could not refresh room');
+          });
+      }
+
+      rollBtn.addEventListener('click', rollDice);
+      refreshBtn.addEventListener('click', refreshRoom);
+      leaveBtn.addEventListener('click', () => {
+        if (socket) socket.close();
+        window.location.href = '/';
+      });
+
+      if (!roomCode) {
+        window.location.href = '/';
+      } else {
+        state.roomCode = roomCode;
+        metaRoom.textContent = roomCode;
+        roomCodeLabel.textContent = `ROOM ${roomCode}`;
+        setStatus('Connecting to room...');
+        renderGame();
+        connectSocket();
+      }
     </script>
-</body>
+  </body>
 </html>
