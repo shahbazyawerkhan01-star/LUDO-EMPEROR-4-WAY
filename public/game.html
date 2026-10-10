@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#0a0f26" />
+    <title>Ludo Emperor 4 Way — Game</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0a0f26;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        #app-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: #1a1f3a;
+            padding: 12px 16px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+        .room-info {
+            display: flex;
+            gap: 20px;
+        }
+        .players-list {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .player-badge {
+            padding: 4px 8px;
+            background: #333;
+            border-radius: 4px;
+            font-size: 12px;
+            border: 1px solid #555;
+        }
+        .player-badge.active {
+            background: #22c55e;
+            border-color: #16a34a;
+        }
+        .game-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        canvas {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .controls {
+            background: #1a1f3a;
+            padding: 12px 16px;
+            border-top: 1px solid #333;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .dice-display {
+            font-size: 18px;
+            font-weight: bold;
+            background: #333;
+            padding: 8px 12px;
+            border-radius: 6px;
+            min-width: 60px;
+            text-align: center;
+        }
+        button {
+            background: #f59e0b;
+            color: #0a0f26;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #fbbf24;
+        }
+        button:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+        .status-msg {
+            color: #cbd5e1;
+            font-size: 13px;
+        }
+        .exit-btn {
+            background: #ef4444;
+            color: white;
+            margin-left: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <div class="header">
+            <div class="room-info">
+                <span>Room: <strong id="room-code">—</strong></span>
+                <span id="room-players" class="players-list"></span>
+            </div>
+            <span class="status-msg" id="status">Connecting...</span>
+            <button class="exit-btn" onclick="exitGame()">Exit</button>
+        </div>
+        <div class="game-area">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+        <div class="controls">
+            <span class="status-msg" id="turn-info">Waiting for players...</span>
+            <span class="dice-display" id="dice-value">—</span>
+            <button id="roll-btn" onclick="rollDice()" disabled>Roll Dice</button>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let roomCode = null;
+        let playerName = null;
+        let gameState = null;
+        let players = [];
+        let currentPlayerIndex = 0;
+        let diceValue = 0;
+        let canRoll = false;
+
+        // Get room and player info from URL params or localStorage
+        function initGame() {
+            const params = new URLSearchParams(window.location.search);
+            roomCode = params.get('room') || localStorage.getItem('currentRoom');
+            playerName = localStorage.getItem('playerName') || 'Player';
+
+            if (!roomCode || !playerName) {
+                alert('Missing room or player info. Redirecting to lobby...');
+                window.location.href = '/';
+                return;
+            }
+
+            document.getElementById('room-code').textContent = roomCode;
+            connectWebSocket();
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                // Join the room
+                ws.send(JSON.stringify({
+                    type: 'join-room',
+                    roomCode: roomCode,
+                    playerName: playerName
+                }));
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    handleMessage(message);
+                } catch (e) {
+                    console.error('WS message parse error:', e);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                document.getElementById('status').textContent = 'Connection error';
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket closed');
+                document.getElementById('status').textContent = 'Disconnected';
+            };
+        }
+
+        function handleMessage(message) {
+            if (message.type === 'room-update') {
+                players = message.players || [];
+                updatePlayersList();
+                document.getElementById('status').textContent = `${players.length} players in room`;
+            } else if (message.type === 'game-state') {
+                gameState = message.state || gameState;
+                currentPlayerIndex = message.currentPlayer || 0;
+                updateTurnInfo();
+                redrawGame();
+            } else if (message.type === 'dice-roll') {
+                diceValue = message.value;
+                currentPlayerIndex = message.nextPlayer;
+                document.getElementById('dice-value').textContent = diceValue;
+                canRoll = false;
+                document.getElementById('roll-btn').disabled = true;
+                updateTurnInfo();
+            } else if (message.type === 'error') {
+                alert('Error: ' + message.message);
+            }
+        }
+
+        function updatePlayersList() {
+            const list = document.getElementById('room-players');
+            list.innerHTML = players.map((p, i) => 
+                `<span class="player-badge ${i === currentPlayerIndex ? 'active' : ''}">${p.name}</span>`
+            ).join('');
+        }
+
+        function updateTurnInfo() {
+            if (!players.length) return;
+            const currentPlayer = players[currentPlayerIndex];
+            const isMyTurn = currentPlayer.name === playerName;
+            document.getElementById('turn-info').textContent = `${isMyTurn ? 'Your' : currentPlayer.name + "'s"} turn`;
+            document.getElementById('roll-btn').disabled = !isMyTurn;
+            canRoll = isMyTurn;
+        }
+
+        function rollDice() {
+            if (!canRoll || !ws || ws.readyState !== WebSocket.OPEN) return;
+            
+            const value = Math.floor(Math.random() * 6) + 1;
+            
+            // Send dice roll to server
+            ws.send(JSON.stringify({
+                type: 'dice-roll',
+                roomCode: roomCode,
+                playerName: playerName,
+                value: value
+            }));
+        }
+
+        function redrawGame() {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = Math.min(600, window.innerWidth - 40);
+            canvas.height = Math.min(600, window.innerHeight - 180);
+
+            // Draw Ludo board background
+            ctx.fillStyle = '#1a2642';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw board grid
+            drawBoard(ctx, canvas.width, canvas.height);
+
+            // Draw dice value if rolled
+            if (diceValue > 0) {
+                ctx.fillStyle = '#f59e0b';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Dice: ${diceValue}`, canvas.width / 2, 40);
+            }
+
+            // Draw players info
+            ctx.fillStyle = '#cbd5e1';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'left';
+            players.forEach((p, i) => {
+                ctx.fillText(`${p.name} (${p.name === playerName ? 'You' : 'Opponent'})`, 10, canvas.height - 20 - (i * 20));
+            });
+        }
+
+        function drawBoard(ctx, w, h) {
+            const cellSize = Math.min(w, h) / 10;
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+
+            // Draw grid
+            for (let i = 0; i <= 10; i++) {
+                // Vertical lines
+                ctx.beginPath();
+                ctx.moveTo(i * cellSize, 0);
+                ctx.lineTo(i * cellSize, h);
+                ctx.stroke();
+                
+                // Horizontal lines
+                ctx.beginPath();
+                ctx.moveTo(0, i * cellSize);
+                ctx.lineTo(w, i * cellSize);
+                ctx.stroke();
+            }
+
+            // Draw 4 player areas (corners)
+            const colors = ['#ef4444', '#22c55e', '#eab308', '#06b6d4'];
+            const corners = [
+                {x: 0, y: 0},
+                {x: w - cellSize * 3, y: 0},
+                {x: w - cellSize * 3, y: h - cellSize * 3},
+                {x: 0, y: h - cellSize * 3}
+            ];
+
+            corners.forEach((corner, i) => {
+                ctx.fillStyle = colors[i];
+                ctx.globalAlpha = 0.2;
+                ctx.fillRect(corner.x, corner.y, cellSize * 3, cellSize * 3);
+                ctx.globalAlpha = 1;
+            });
+        }
+
+        function exitGame() {
+            if (ws) ws.close();
+            localStorage.removeItem('currentRoom');
+            window.location.href = '/';
+        }
+
+        window.addEventListener('resize', () => {
+            redrawGame();
+        });
+
+        // Initialize game on load
+        window.addEventListener('load', initGame);
+    </script>
+</body>
+</html>
