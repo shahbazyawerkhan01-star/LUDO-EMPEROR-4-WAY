@@ -151,7 +151,7 @@ export function MultiplayerLobbyModal({ onClose, initialRoomCode }: Props) {
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Your nickname"
-                                className="flex-1 bg-slate-950/90 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold outline-none focus:border-cyan-400"
+                                className="flex-1 bg-slate-950/90 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold outline-none focus:border-cyan-400 text-base"
                             />
                             <div className="text-2xl sm:text-3xl bg-slate-800/80 w-12 h-12 flex items-center justify-center rounded-xl border border-slate-600">
                                 {avatar}

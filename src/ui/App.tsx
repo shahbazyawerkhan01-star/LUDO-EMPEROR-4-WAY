@@ -28,24 +28,21 @@ export function App() {
             } catch {
                 fs = false;
             }
-            // Landscape is driven by the VIEWPORT, not by the frame: a wide screen
-            // (desktop window, laptop, tablet, or a phone turned sideways) should
-            // use the wide layout instead of sitting in a letterboxed portrait strip.
-            //
-            // The menu and setup screens are the exception: they were designed as a
-            // portrait column, and stretching them across a wide window made the
-            // text tiny and the rows span the full width. They keep the original
-            // portrait column, so the wide layout only applies while playing.
             const vw = Math.max(1, window.innerWidth);
             const vh = Math.max(1, window.innerHeight);
-            const portraitScreen = store.get().phase === 'menu' || store.get().phase === 'setup';
-            const land = !portraitScreen && vw > vh * 1.05;
+            const isPlaying = store.get().phase === 'playing';
+            // On wide screens (desktop or phone in landscape), use wide layout
+            const land = vw > vh * 1.05;
             frame.classList.toggle('fs', fs);
             frame.classList.toggle('land', land);
-            frame.style.setProperty('--u', `${land ? vh / 720 : Math.min(vw, (vh * 9) / 16) / 720}px`);
-            // only patch when something actually changed -- patching re-renders
-            // React, and this function is also a store listener
-            if (store.get().fullscreen !== fs || store.get().landscape !== land) store.patch({ fullscreen: fs, landscape: land });
+            
+            // On phones and mobile viewports, scale smoothly based on screen dimensions
+            const unit = land ? Math.max(0.48, vh / 720) : Math.max(0.48, Math.min(vw, (vh * 9) / 16) / 720);
+            frame.style.setProperty('--u', `${unit}px`);
+            
+            if (store.get().fullscreen !== fs || store.get().landscape !== land) {
+                store.patch({ fullscreen: fs, landscape: land });
+            }
         };
 
         /**

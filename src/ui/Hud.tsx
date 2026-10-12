@@ -147,7 +147,10 @@ export function Hud() {
 
             {/* Multiplayer Live Room & Turn Status Overlay */}
             {isMultiplayer && (
-                <div className="absolute top-16 left-0 right-0 z-20 flex flex-col items-center pointer-events-none px-4">
+                <div
+                    className="absolute left-0 right-0 z-20 flex flex-col items-center pointer-events-none px-3"
+                    style={{ top: `calc(${U(62)} + env(safe-area-inset-top, 0px))` }}
+                >
                     {/* Offline / Reconnecting notice */}
                     {offlineNotice && (
                         <div className="pointer-events-auto mb-2 px-4 py-1.5 rounded-full bg-red-600/90 text-white font-extrabold text-xs sm:text-sm shadow-lg animate-pulse flex items-center gap-2">
@@ -156,11 +159,11 @@ export function Hud() {
                     )}
 
                     {/* Room Badge + Turn status indicator */}
-                    <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-2 bg-slate-950/85 backdrop-blur-md border border-cyan-500/30 px-3.5 py-1.5 rounded-full shadow-xl">
+                    <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-2 bg-slate-950/90 backdrop-blur-md border border-cyan-500/40 px-3.5 py-1.5 rounded-full shadow-xl">
                         {/* Room code chip */}
                         <button
                             onClick={handleCopyCode}
-                            className="flex items-center gap-1.5 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/40 text-cyan-300 px-2.5 py-1 rounded-full text-xs font-mono font-black transition-all"
+                            className="flex items-center gap-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 text-cyan-300 px-2.5 py-1 rounded-full text-xs font-mono font-black transition-all"
                             title="Click to copy invite link"
                         >
                             <span>ROOM: {roomCode}</span>
@@ -180,7 +183,7 @@ export function Hud() {
                             </span>
 
                             {/* Live 30s Countdown timer pill */}
-                            <div className="flex items-center gap-1 bg-black/50 px-2 py-0.5 rounded-full border border-slate-700">
+                            <div className="flex items-center gap-1 bg-black/60 px-2 py-0.5 rounded-full border border-slate-700">
                                 <span className="text-xs">⏱️</span>
                                 <span className={`text-xs font-mono font-black ${secondsLeft <= 5 ? 'text-red-400 animate-bounce' : 'text-slate-200'}`}>
                                     {secondsLeft}s
@@ -193,7 +196,10 @@ export function Hud() {
 
             {/* In-Game Floating Chat Bubble Notification */}
             {recentChat && Date.now() - recentChat.time < 5000 && (
-                <div className="absolute top-28 left-1/2 -translate-x-1/2 z-30 pointer-events-none animate-bounce">
+                <div
+                    className="absolute left-1/2 -translate-x-1/2 z-30 pointer-events-none animate-bounce"
+                    style={{ top: `calc(${U(120)} + env(safe-area-inset-top, 0px))` }}
+                >
                     <div className="bg-slate-900/95 border-2 border-cyan-400/60 shadow-2xl px-4 py-2 rounded-2xl flex items-center gap-2.5 text-white">
                         <span className="text-2xl">{recentChat.avatar}</span>
                         <div>
@@ -205,7 +211,13 @@ export function Hud() {
             )}
 
             {/* Bottom-left: Lucky Wish + Quick Chat (in Multiplayer) */}
-            <div className="absolute z-20 flex items-center gap-2" style={{ left: U(16), bottom: U(18) }}>
+            <div
+                className="absolute z-20 flex items-center gap-2"
+                style={{
+                    left: `calc(${U(16)} + env(safe-area-inset-left, 0px))`,
+                    bottom: `calc(${U(18)} + env(safe-area-inset-bottom, 0px))`,
+                }}
+            >
                 {/* Lucky Wish Button */}
                 <button
                     onClick={() => bus.wish?.()}
@@ -216,7 +228,7 @@ export function Hud() {
                             ? 'pulse-wish border-amber-300 bg-gradient-to-r from-amber-400 to-orange-500 text-black shadow-lg scale-105'
                             : 'border-white/20 bg-black/60 text-white/50'
                     }`}
-                    style={{ height: U(64), padding: `0 ${U(18)}`, gap: U(8), fontSize: U(24) }}
+                    style={{ height: U(64), minHeight: '44px', padding: `0 ${U(18)}`, gap: U(8), fontSize: U(24) }}
                 >
                     ✨ {wishNums ? `${wishNums[0]},${wishNums[1]}` : 'no wish'}
                 </button>
@@ -226,7 +238,7 @@ export function Hud() {
                     <button
                         onClick={() => setChatOpen((o) => !o)}
                         className="rounded-full bg-cyan-500/20 hover:bg-cyan-500/35 border-2 border-cyan-400/50 text-cyan-200 flex items-center justify-center font-bold text-xl transition-all shadow-md active:scale-95"
-                        style={{ width: U(64), height: U(64) }}
+                        style={{ width: U(64), height: U(64), minWidth: '44px', minHeight: '44px' }}
                         title="Chat & Emoji Reactions"
                     >
                         💬
@@ -235,14 +247,27 @@ export function Hud() {
             </div>
 
             {/* Bottom-right: Music + Fullscreen */}
-            <div className="absolute z-20 flex" style={{ right: U(16), bottom: U(18), gap: U(12) }}>
+            <div
+                className="absolute z-20 flex"
+                style={{
+                    right: `calc(${U(16)} + env(safe-area-inset-right, 0px))`,
+                    bottom: `calc(${U(18)} + env(safe-area-inset-bottom, 0px))`,
+                    gap: U(12),
+                }}
+            >
                 <RoundBtn label="Music" onClick={() => store.patch({ modal: 'music' })}>🎵</RoundBtn>
                 <RoundBtn label="Fullscreen" onClick={toggleFullscreen}>{fs ? '⤡' : '⛶'}</RoundBtn>
             </div>
 
             {/* Quick Emoji & Chat Popup Menu */}
             {chatOpen && isMultiplayer && (
-                <div className="absolute left-4 bottom-24 z-30 bg-slate-900/95 border border-cyan-500/40 rounded-2xl p-3 shadow-2xl backdrop-blur-md flex flex-col gap-2 max-w-[280px] sm:max-w-[320px]">
+                <div
+                    className="absolute z-30 bg-slate-900/95 border border-cyan-500/40 rounded-2xl p-3 shadow-2xl backdrop-blur-md flex flex-col gap-2 max-w-[280px] sm:max-w-[320px]"
+                    style={{
+                        left: `calc(${U(16)} + env(safe-area-inset-left, 0px))`,
+                        bottom: `calc(${U(90)} + env(safe-area-inset-bottom, 0px))`,
+                    }}
+                >
                     <div className="flex items-center justify-between pb-1 border-b border-slate-800">
                         <span className="text-xs font-black uppercase text-cyan-400">Quick Banter & Reactions</span>
                         <button onClick={() => setChatOpen(false)} className="text-slate-400 hover:text-white text-xs font-bold">✕</button>
@@ -283,11 +308,11 @@ export function Hud() {
                             onChange={(e) => setCustomChat(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && sendCustomMessage()}
                             placeholder="Type a message..."
-                            className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white outline-none focus:border-cyan-400"
+                            className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-sm sm:text-xs text-white outline-none focus:border-cyan-400"
                         />
                         <button
                             onClick={sendCustomMessage}
-                            className="px-2.5 py-1 bg-cyan-500 text-slate-950 rounded-lg font-black text-xs"
+                            className="px-3 py-1.5 bg-cyan-500 text-slate-950 rounded-lg font-black text-xs active:scale-95"
                         >
                             Send
                         </button>

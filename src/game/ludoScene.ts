@@ -163,37 +163,34 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
         const W = stage.designWidth(), H = stage.designHeight();
         bgFill.clear().rect(-60, -60, W + 120, H + 120).fill(BG_BASE[store.get().settings.bg]);
         if (stage.landscape()) {
-            const bw = Math.min(W * 0.56, 800);
-            boardRect = { x: 24, y: 84, w: bw, h: H - 84 - 84 };
-            colX = 24 + bw + 34;
-            colW = W - colX - 24;
-            // dice at a third of their previous size, kept close together so the
-            // pair reads as one control and is easy to tap
-            diceSize = Math.min(104, colW * 0.2) / 3;
-            diceCY = 232;
-            diceCX = [colX + colW / 2 - diceSize * 1.15, colX + colW / 2 + diceSize * 1.15];
-            turnY = diceCY + diceSize * 0.5 + 34;
-            chatY = turnY + 40;
-            const adTop = chatY + 84;
-            // banner 20% taller than the panel it replaced, capped so it never
-            // runs under the music / fullscreen buttons at the bottom.
-            const adRoom = Math.max(60, H - adTop - 110);
-            adRect = { x: colX, y: adTop, w: colW, h: Math.max(90, adRoom) };
+            const bw = Math.min(W * 0.58, 800);
+            boardRect = { x: 20, y: 72, w: bw, h: H - 72 - 72 };
+            colX = 20 + bw + 28;
+            colW = W - colX - 20;
+            // dice sized for touch and clarity
+            diceSize = Math.max(56, Math.min(80, colW * 0.32));
+            diceCY = 205;
+            diceCX = [colX + colW / 2 - diceSize * 1.18, colX + colW / 2 + diceSize * 1.18];
+            turnY = diceCY + diceSize * 0.55 + 28;
+            chatY = turnY + 34;
+            const adTop = chatY + 70;
+            const adRoom = Math.max(50, H - adTop - 90);
+            adRect = { x: colX, y: adTop, w: colW, h: Math.max(64, adRoom) };
         } else {
-            const boardH = Math.max(380, Math.min(H * 0.4, 640));
-            boardRect = { x: 12, y: 176, w: W - 24, h: boardH };
-            colX = 14;
-            colW = W - 28;
-            // dice at a third of their previous size, kept close together
-            diceSize = 96 / 3;
-            diceCY = boardRect.y + boardRect.h + 56 + 62;
-            diceCX = [W / 2 - diceSize * 1.15, W / 2 + diceSize * 1.15];
-            turnY = diceCY + diceSize * 0.5 + 34;
-            chatY = turnY + 38;
-            const adTop = chatY + 84;
-            // same 20% increase, capped so it never reaches the bottom buttons
-            const adRoom = Math.max(60, H - adTop - 110);
-            adRect = { x: 16, y: adTop, w: W - 32, h: Math.max(90, Math.min(adRoom, 380)) };
+            // Mobile portrait layout: generous board and large touch-friendly dice
+            const boardH = Math.max(420, Math.min(H * 0.52, W - 16));
+            boardRect = { x: 8, y: 140, w: W - 16, h: boardH };
+            colX = 12;
+            colW = W - 24;
+            // Big, touch-optimized dice (72 design units = ~39-42px on phones)
+            diceSize = Math.max(68, Math.min(84, W * 0.11));
+            diceCY = boardRect.y + boardRect.h + 54;
+            diceCX = [W / 2 - diceSize * 1.2, W / 2 + diceSize * 1.2];
+            turnY = diceCY + diceSize * 0.55 + 30;
+            chatY = turnY + 34;
+            const adTop = chatY + 68;
+            const adRoom = Math.max(50, H - adTop - 110);
+            adRect = { x: 16, y: adTop, w: W - 32, h: Math.max(60, Math.min(adRoom, 180)) };
         }
         document.getElementById('app-frame')?.style.setProperty('--colx', String(colX));
         document.getElementById('app-frame')?.style.setProperty('--colw', String(colW));
@@ -304,7 +301,7 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
             c.addChild(body);
             c.eventMode = 'static';
             c.cursor = 'pointer';
-            c.hitArea = new Circle(0, -0.4, 0.62);
+            c.hitArea = new Circle(0, -0.4, 1.25);
             const shadow = new Graphics();
             shadow.ellipse(0, 0, 0.36, 0.14).fill({ color: 0x000000, alpha: 0.3 });
             const ring = new Graphics();
@@ -471,46 +468,45 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
             c.position.set(diceCX[i], diceCY);
             c.eventMode = 'static';
             c.cursor = 'pointer';
-            c.hitArea = new Circle(0, 0, diceSize * 0.75);
+            c.hitArea = new Circle(0, 0, Math.max(50, diceSize * 0.95));
             c.on('pointertap', () => onDieTap(i));
             uiLayer.addChild(c);
             dieC.push(c);
             dieG.push(g);
         }
-        // half-size text for the turn line and the AI chatter
-        turnTxt = new Text({ text: '', style: { fontFamily: 'Arial, sans-serif', fontSize: 15, fontWeight: '800', fill: 0xffffff, stroke: { color: 0x000000, width: 3 } } });
+        // Responsive, high-contrast turn indicator and chatter text for mobile screens
+        turnTxt = new Text({ text: '', style: { fontFamily: 'Arial, sans-serif', fontSize: 22, fontWeight: '900', fill: 0xffffff, stroke: { color: 0x000000, width: 4 }, letterSpacing: 0.5 } });
         turnTxt.anchor.set(0.5);
         turnTxt.position.set(diceCX[0] / 2 + diceCX[1] / 2, turnY);
         uiLayer.addChild(turnTxt);
         chatTxt.length = 0;
         for (let i = 0; i < 2; i++) {
-            const t = new Text({ text: '', style: { fontFamily: 'Arial, sans-serif', fontSize: 12, fontWeight: '700', fill: 0xffffff, stroke: { color: 0x000000, width: 2 }, wordWrap: true, wordWrapWidth: colW - 20, align: 'center' } });
+            const t = new Text({ text: '', style: { fontFamily: 'Arial, sans-serif', fontSize: 16, fontWeight: '700', fill: 0xffffff, stroke: { color: 0x000000, width: 3 }, wordWrap: true, wordWrapWidth: colW - 20, align: 'center' } });
             t.anchor.set(0.5, 0);
-            t.position.set(colX + colW / 2, chatY + i * 40);
+            t.position.set(colX + colW / 2, chatY + i * 36);
             uiLayer.addChild(t);
             chatTxt.push(t);
         }
-        // advertisement banner placeholder (no real ad network is wired in here).
-        // Fully transparent: only the outline, the AD tag and the label show, so
-        // the table background stays visible behind the slot.
+        // Elegant, themed status banner for game tips and quick play info
         adC = new Container();
         const ag = new Graphics();
-        ag.roundRect(0, 0, adRect.w, adRect.h, 18).fill({ color: 0x10142b, alpha: 0 }).stroke({ width: 3, color: 0x00e5ff, alpha: 0.7 });
-        ag.roundRect(10, 10, 58, 28, 8).fill(0xffc107);
-        const adTag = new Text({ text: 'AD', style: { fontFamily: 'Arial', fontSize: 20, fontWeight: '900', fill: 0x222222 } });
+        ag.roundRect(0, 0, adRect.w, adRect.h, 16).fill({ color: 0x091028, alpha: 0.75 }).stroke({ width: 2, color: 0x18e0ff, alpha: 0.6 });
+        ag.roundRect(10, 10, 60, 26, 6).fill(0x18e0ff);
+        const adTag = new Text({ text: 'LUDO', style: { fontFamily: 'Arial', fontSize: 14, fontWeight: '900', fill: 0x070b1f } });
         adTag.anchor.set(0.5);
-        adTag.position.set(39, 24);
-        const adTxt = new Text({ text: 'ADVERTISEMENT · Your banner here', style: { fontFamily: 'Arial', fontSize: Math.min(40, adRect.h * 0.22), fontWeight: '800', fill: 0xbfc8ff, align: 'center' } });
+        adTag.position.set(40, 23);
+        const adTxt = new Text({ text: '⚔️ 4-WAY REALTIME BATTLE · 2 DICE + LUCKY 7', style: { fontFamily: 'Arial', fontSize: Math.min(18, Math.max(13, adRect.h * 0.24)), fontWeight: '800', fill: 0xbfe8ff, align: 'center' } });
         adTxt.anchor.set(0.5);
-        adTxt.position.set(adRect.w / 2, adRect.h / 2);
+        adTxt.position.set(adRect.w / 2, adRect.h / 2 + 4);
         adC.addChild(ag, adTag, adTxt);
         adC.position.set(adRect.x, adRect.y);
         adC.eventMode = 'static';
-        adC.on('pointertap', () => { /* banner slot: hook an ad SDK here */ });
+        adC.on('pointertap', () => { store.patch({ modal: 'howto' }); });
         uiLayer.addChild(adC);
     }
 
     function drawDice(now: number) {
+        if (dead) return;
         for (let i = 0; i < 2; i++) {
             const used = diceUsed[i];
             const rollingIdle = !!waitRoll && !isAI(current);
@@ -518,8 +514,12 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
             const choosingDie = !!waitChoice && !used && !dieConfirmed;
             const pulse = (rollingIdle || dieFlash > 0 ? 1 + 0.06 * Math.sin(now / 160) : 1) * (choosingDie ? 1 + 0.04 * Math.sin(now / 220) : 1);
             const sel = !used && selDie === i && !!waitChoice;
-            drawDie(dieG[i], diceSize, dice[i], diceColor, current === 2 ? 0x2a2a2a : 0xffffff, { dim: used && !waitRoll, glow: sel });
-            dieC[i].scale.set(pulse);
+            if (dieG[i]) {
+                drawDie(dieG[i], diceSize, dice[i], diceColor, current === 2 ? 0x2a2a2a : 0xffffff, { dim: used && !waitRoll, glow: sel });
+            }
+            if (dieC[i]?.scale) {
+                dieC[i].scale.set(pulse);
+            }
         }
         if (dieFlash > 0) dieFlash = Math.max(0, dieFlash - 16);
     }
@@ -544,9 +544,10 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
     let handShown = false;
 
     function dieCenter(i: number) {
-        return { x: dieC[i]?.position.x ?? diceCX[i], y: dieC[i]?.position.y ?? diceCY };
+        return { x: dieC[i]?.position?.x ?? diceCX[i] ?? 0, y: dieC[i]?.position?.y ?? diceCY ?? 0 };
     }
     function syncHand() {
+        if (dead) return;
         if ((multiplayerClient.roomCode && multiplayerClient.myPlayerIndex !== current) || isAI(current) || winner >= 0) {
             handTarget = null;
         } else if (waitRoll) {
@@ -557,7 +558,7 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
             if (!dieConfirmed) {
                 handTarget = dieCenter(selDie); // step 1: which number
                 handGap = 24;
-            } else if (usable.length) {
+            } else if (usable.length && views[current]?.[usable[0]?.tok]?.c) {
                 // step 2: point down at the piece to move (follows the board)
                 const v = views[current][usable[0].tok];
                 handTarget = { x: v.c.x, y: v.c.y };
@@ -569,23 +570,28 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
         } else {
             handTarget = null;
         }
-        if (handTarget && !handShown) {
+        if (handTarget && !handShown && !dead && uiLayer) {
             handShown = true;
-            uiLayer.addChild(hand);
+            try { uiLayer.addChild(hand); } catch { /* ignore */ }
         } else if (!handTarget && handShown) {
             handShown = false;
-            hand.removeFromParent();
+            try { hand.removeFromParent(); } catch { /* ignore */ }
         }
     }
     function updateHand(dt: number) {
+        if (dead || !hand || !hand.position) return;
         const want = handTarget ? 0.95 : 0;
         hand.alpha += (want - hand.alpha) * Math.min(1, dt / 160);
-        if (!handTarget) return;
+        if (!handTarget || !hand.position) return;
         // The hand sits so its fingertip hovers just above the target, then taps
         // gently downwards: the glyph centre is (tipDrop + gap) above the target.
         const gap = handGap;
         const bob = Math.abs(Math.sin(clock / 300)) * 8;
-        hand.position.set(handTarget.x, handTarget.y - handTipDrop() - gap + bob);
+        try {
+            hand.position.set(handTarget.x, handTarget.y - handTipDrop() - gap + bob);
+        } catch {
+            // safe guard if hand is unmounted or position is null
+        }
     }
 
     function setStatus(s: string) {
@@ -1123,7 +1129,8 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
     // ---------------------------------------------------------------- ticker
     let now = 0;
     const tick = () => {
-        const dt = Math.min(60, app.ticker.deltaMS);
+        if (dead) return;
+        const dt = Math.min(60, app.ticker?.deltaMS ?? 16);
         clock += dt;
         now += dt;
         for (let i = timers.length - 1; i >= 0; i--) {
@@ -1179,7 +1186,7 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
             dead = true;
             offResize();
             unsubStore();
-            app.ticker.remove(tick);
+            try { app.ticker?.remove(tick); } catch { /* ignore */ }
             bus.chat = undefined;
             bus.wish = undefined;
             bus.onRemoteDiceRolled = undefined;
@@ -1189,10 +1196,12 @@ export function createLudoScene(app: Application, stage: Stage, opts: SceneOpts)
             if (waitRoll) { const r = waitRoll; waitRoll = null; r(); }
             if (waitChoice) { const c = waitChoice; waitChoice = null; c(optionsNow[0]); }
             handTarget = null;
+            handShown = false;
+            try { hand.removeFromParent(); } catch { /* ignore */ }
             sfx.stopSpeech();
             tweens.length = 0;
             timers.length = 0;
-            root.removeChildren();
+            try { root.removeChildren(); } catch { /* ignore */ }
             store.patch({ wishNums: null, wishUsable: false });
         },
     };

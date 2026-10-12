@@ -27,7 +27,16 @@ export function SetupScreen() {
     };
 
     return (
-        <div className="menu circuit absolute inset-0 overflow-y-auto" style={{ padding: `${U(34)} ${U(24)} ${U(130)}` }}>
+        <div
+            className="menu circuit absolute inset-0 overflow-y-auto overscroll-contain"
+            style={{
+                paddingTop: `calc(${U(30)} + env(safe-area-inset-top, 0px))`,
+                paddingBottom: `calc(${U(120)} + env(safe-area-inset-bottom, 0px))`,
+                paddingLeft: `calc(${U(20)} + env(safe-area-inset-left, 0px))`,
+                paddingRight: `calc(${U(20)} + env(safe-area-inset-right, 0px))`,
+                WebkitOverflowScrolling: 'touch',
+            }}
+        >
             <h1 className="glow-title text-center font-black text-cyan-300" style={{ fontSize: U(42) }}>{T('setupTitle')}</h1>
 
             <div className="flex items-center justify-center" style={{ gap: U(12), marginTop: U(18) }}>

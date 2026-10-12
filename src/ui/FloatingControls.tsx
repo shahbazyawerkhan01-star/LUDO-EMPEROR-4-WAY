@@ -83,16 +83,16 @@ export function RotateHint() {
     return (
         <button
             onClick={() => setDismissed(true)}
-            className="pop absolute z-40 flex items-center"
+            className="pop absolute z-40 flex items-center shadow-lg"
             style={{
-                top: U(14),
+                top: `calc(${U(14)} + env(safe-area-inset-top, 0px))`,
                 left: '50%',
                 transform: 'translateX(-50%)',
                 gap: U(8),
-                padding: `${U(7)}px ${U(14)}px`,
+                padding: `${U(8)} ${U(16)}`,
                 borderRadius: U(999),
-                background: 'rgba(6,10,30,0.88)',
-                border: `1px solid rgba(24,224,255,0.5)`,
+                background: 'rgba(6,10,30,0.92)',
+                border: `1px solid rgba(24,224,255,0.6)`,
                 color: '#cfefff',
                 fontWeight: 700,
                 fontSize: U(15),
@@ -101,7 +101,7 @@ export function RotateHint() {
             aria-label="Rotate device for the wide board layout"
         >
             <span style={{ fontSize: U(18) }}>🔄</span>
-            Rotate for full board
+            Rotate for wide board
         </button>
     );
 }
@@ -112,14 +112,42 @@ export function FloatingControls() {
     const fs = useStore((s) => s.fullscreen);
     return (
         <>
-            <RoundBtn label="Toggle controls" size={52} onClick={() => setOpen(!open)} className="absolute z-30" style={{ top: U(18), right: U(18) }}>☰</RoundBtn>
+            <RoundBtn
+                label="Toggle controls"
+                size={52}
+                onClick={() => setOpen(!open)}
+                className="absolute z-30"
+                style={{
+                    top: `calc(${U(16)} + env(safe-area-inset-top, 0px))`,
+                    right: `calc(${U(16)} + env(safe-area-inset-right, 0px))`,
+                }}
+            >
+                ☰
+            </RoundBtn>
             {open && (
                 <>
-                    <div className="absolute z-30 flex flex-col" style={{ right: U(18), bottom: U(20), gap: U(12) }}>
+                    <div
+                        className="absolute z-30 flex flex-col"
+                        style={{
+                            right: `calc(${U(16)} + env(safe-area-inset-right, 0px))`,
+                            bottom: `calc(${U(18)} + env(safe-area-inset-bottom, 0px))`,
+                            gap: U(12),
+                        }}
+                    >
                         <RoundBtn label="Music" onClick={() => store.patch({ modal: 'music' })}>🎵</RoundBtn>
                         <RoundBtn label="Settings" onClick={() => store.patch({ modal: 'settings' })}>⚙️</RoundBtn>
                     </div>
-                    <RoundBtn label="Fullscreen" onClick={toggleFullscreen} className="absolute z-30" style={{ left: U(18), bottom: U(20) }}>{fs ? '⤡' : '⛶'}</RoundBtn>
+                    <RoundBtn
+                        label="Fullscreen"
+                        onClick={toggleFullscreen}
+                        className="absolute z-30"
+                        style={{
+                            left: `calc(${U(16)} + env(safe-area-inset-left, 0px))`,
+                            bottom: `calc(${U(18)} + env(safe-area-inset-bottom, 0px))`,
+                        }}
+                    >
+                        {fs ? '⤡' : '⛶'}
+                    </RoundBtn>
                 </>
             )}
         </>

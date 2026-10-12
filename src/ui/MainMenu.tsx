@@ -16,12 +16,21 @@ export function MainMenu() {
     ];
 
     return (
-        <div className="menu circuit absolute inset-0 flex flex-col items-center overflow-y-auto" style={{ padding: `${U(60)} ${U(30)} ${U(120)}` }}>
+        <div
+            className="menu circuit absolute inset-0 flex flex-col items-center overflow-y-auto overscroll-contain"
+            style={{
+                paddingTop: `calc(${U(40)} + env(safe-area-inset-top, 0px))`,
+                paddingBottom: `calc(${U(100)} + env(safe-area-inset-bottom, 0px))`,
+                paddingLeft: `calc(${U(20)} + env(safe-area-inset-left, 0px))`,
+                paddingRight: `calc(${U(20)} + env(safe-area-inset-right, 0px))`,
+                WebkitOverflowScrolling: 'touch',
+            }}
+        >
             <h1 className="glow-title text-center font-black leading-none text-cyan-300" style={{ fontSize: U(74) }}>
                 LUDO<br />EMPEROR
             </h1>
             <div className="font-black tracking-[0.35em] text-white" style={{ fontSize: U(34), marginTop: U(8) }}>4 WAY</div>
-            <div className="font-semibold text-cyan-100/90" style={{ fontSize: U(26), marginTop: U(14) }}>{T('subtitle')}</div>
+            <div className="font-semibold text-cyan-100/90 text-center" style={{ fontSize: U(26), marginTop: U(14) }}>{T('subtitle')}</div>
             <div className="text-center font-black text-red-500" style={{ fontSize: U(24), marginTop: U(8), textShadow: '0 0 12px rgba(255,40,40,0.8)' }}>{T('tagline')}</div>
 
             <div className="flex flex-wrap justify-center" style={{ gap: U(10), marginTop: U(24) }}>
